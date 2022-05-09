@@ -1,82 +1,68 @@
-...
+import os
+
+import requests
+from dotenv import load_dotenv
+from telegram import ReplyKeyboardMarkup
+from telegram.ext import CommandHandler, Updater, MessageHandler, Filters
 
 load_dotenv()
+secret_token = os.getenv('TOKEN')
+URL_CAT = 'https://api.thecatapi.com/v1/images/search'
+URL_DOG = 'https://api.thedogapi.com/v1/images/search'
 
 
-PRACTICUM_TOKEN = ...
-TELEGRAM_TOKEN = ...
-TELEGRAM_CHAT_ID = ...
-
-RETRY_TIME = 600
-ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
-HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
+def get_cat():
+    response = requests.get(URL_CAT)
+    response = response.json()
+    random_cat = response[0].get('url')
+    return random_cat
 
 
-HOMEWORK_STATUSES = {
-    'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
-    'reviewing': 'Работа взята на проверку ревьюером.',
-    'rejected': 'Работа проверена: у ревьюера есть замечания.'
-}
+def get_dog():
+    response = requests.get(URL_DOG)
+    response = response.json()
+    random_dog = response[0].get('url')
+    return random_dog
 
 
-def send_message(bot, message):
-    ...
+def new_cat(update, context):
+    chat = update.effective_chat
+    context.bot.send_photo(chat.id, get_cat())
 
 
-def get_api_answer(current_timestamp):
-    timestamp = current_timestamp or int(time.time())
-    params = {'from_date': timestamp}
-
-    ...
+def new_dog(update, context):
+    chat = update.effective_chat
+    context.bot.send_photo(chat.id, get_dog())
 
 
-def check_response(response):
-
-    ...
-
-
-def parse_status(homework):
-    homework_name = ...
-    homework_status = ...
-
-    ...
-
-    verdict = ...
-
-    ...
-
-    return f'Изменился статус проверки работы "{homework_name}". {verdict}'
-
-
-def check_tokens():
-    ...
+def wake_up(update, context):
+    chat = update.effective_chat
+    name = update.message.chat.first_name
+    # За счёт параметра resize_keyboard=True сделаем кнопки поменьше
+    buttons = ReplyKeyboardMarkup(
+        [['Пёсели', 'Котейки']], resize_keyboard=True
+    )
+    context.bot.send_message(
+        chat_id=chat.id,
+        text='Привет, {}. Посмотри, какого котика я тебе нашёл'.format(name),
+        reply_markup=buttons
+    )
+    context.bot.send_photo(chat.id, new_cat(update, context))
 
 
 def main():
-    """Основная логика работы бота."""
+    updater = Updater(token=secret_token)
 
-    ...
+    updater.dispatcher.add_handler(CommandHandler('start', wake_up))
+    updater.dispatcher.add_handler(
+        MessageHandler(Filters.text('Пёсели'), new_dog)
+    )
+    updater.dispatcher.add_handler(
+        MessageHandler(Filters.text('Котейки'), new_cat)
+    )
 
-    bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time())
-
-    ...
-
-    while True:
-        try:
-            response = ...
-
-            ...
-
-            current_timestamp = ...
-            time.sleep(RETRY_TIME)
-
-        except Exception as error:
-            message = f'Сбой в работе программы: {error}'
-            ...
-            time.sleep(RETRY_TIME)
-        else:
-            ...
+    updater.start_polling()
+    updater.idle()
 
 
 if __name__ == '__main__':
